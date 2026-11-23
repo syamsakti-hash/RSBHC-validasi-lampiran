@@ -680,10 +680,10 @@
   }
 
   // Skala menggunakan sisi terpanjang (maxDim) agar gambar landscape maupun portrait tidak terpotong & tetap proporsional
-  function prepareCanvasForOcr(sourceCanvas, maxDim = 1150, angleDeg = 0) {
+ function prepareCanvasForOcr(sourceCanvas, maxDim = 1250, angleDeg = 0) {
     const longestSide = Math.max(sourceCanvas.width, sourceCanvas.height);
     const scale = longestSide < maxDim 
-      ? Math.min(1.5, maxDim / longestSide) 
+      ? Math.min(1.6, maxDim / longestSide) 
       : Math.min(1, maxDim / longestSide);
 
     const scaledW = Math.round(sourceCanvas.width * scale);
@@ -713,16 +713,12 @@
     ctx.drawImage(sourceCanvas, 0, 0, scaledW, scaledH);
     ctx.restore();
 
-    // Tingkatkan kontras grayscale agar teks ber-watermark (IKD) & font tipis terbaca jelas
+    // Grayscale murni tanpa pemotongan kontras agar area gelap/bayangan pada foto KTP & KIS tetap terbaca
     const imgData = ctx.getImageData(0, 0, temp.width, temp.height);
     const d = imgData.data;
-    const contrast = 1.25;
-    const intercept = 128 * (1 - contrast);
-
     for (let i = 0; i < d.length; i += 4) {
       const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      const adj = Math.min(255, Math.max(0, gray * contrast + intercept));
-      d[i] = d[i + 1] = d[i + 2] = adj;
+      d[i] = d[i + 1] = d[i + 2] = gray;
     }
     ctx.putImageData(imgData, 0, 0);
     return temp;
