@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Validasi Dokumen & Foto Karyawan</title>
+  
+  <!-- Library SheetJS untuk baca/tulis Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Library PDF.js untuk merender lampiran PDF menjadi Canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Library Tesseract.js untuk OCR pengecekan teks dokumen -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #1e40af;
+      --primary-light: #dbeafe;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #cbd5e1;
+      --success: #16a34a;
+      --success-bg: #dcfce7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --text: #1e293b;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1380px;
+      margin: auto;
+      background: var(--card);
+      padding: 28px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 22px;
+      color: var(--primary);
+    }
+    .desc {
+      font-size: 14px;
+      color: #475569;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 768px) {
+      .upload-grid { grid-template-columns: 1fr; }
+    }
+    .upload-card {
+      border: 2px dashed var(--border);
+      padding: 20px;
+      border-radius: 10px;
+      background: #f1f5f9;
+    }
+    .upload-card h3 {
+      margin: 0 0 8px 0;
+      font-size: 15px;
+      color: var(--primary);
+    }
+    .upload-card p {
+      margin: 0 0 12px 0;
+      font-size: 12.5px;
+      color: #475569;
+    }
+    .file-info {
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--success);
+    }
+    .action-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 11px 22px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+    .btn:hover:not(:disabled) { opacity: 0.9; }
+    .btn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .btn-success { background: var(--success); }
+
+    .progress-wrapper {
+      margin: 16px 0;
+      display: none;
+      background: #f8fafc;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .progress-bar {
+      width: 100%;
+      height: 14px;
+      background: #e2e8f0;
+      border-radius: 7px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width 0.25s;
+    }
+    #statusText {
+      font-size: 13px;
+      margin-top: 8px;
+      color: #334155;
+      font-weight: 600;
+    }
+
+    /* Dashboard Report Section */
+    #reportSection {
+      display: none;
+      margin-top: 28px;
+      border-top: 2px solid #e2e8f0;
+      padding-top: 24px;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .kpi-card {
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+    .kpi-card .label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .kpi-card .value {
+      font-size: 26px;
+      font-weight: 700;
+      margin-top: 6px;
+      color: var(--text);
+    }
+    .kpi-card.ok { border-left: 5px solid var(--success); }
+    .kpi-card.ok .value { color: var(--success); }
+    .kpi-card.fail { border-left: 5px solid var(--danger); }
+    .kpi-card.fail .value { color: var(--danger); }
+    .kpi-card.info { border-left: 5px solid var(--primary); }
+    .kpi-card.info .value { color: var(--primary); }
+
+    .report-controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+    }
+    .tab-btn {
+      padding: 9px 16px;
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      color: #334155;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .filter-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filter-group input, .filter-group select {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      max-height: 550px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      padding: 9px 11px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #e2e8f0;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      white-space: nowrap;
+    }
+    tr:hover td { background-color: #f8fafc; }
+    .badge-ok {
+      display: inline-block;
+      background: var(--success-bg);
+      color: var(--success);
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-weight: 700;
+      font-size: 11.5px;
+    }
+    .badge-fail {
+      display: inline-block;
+      background: var(--danger-bg);
+      color: var(--danger);
+      padding: 4px 8px;
+      border-radius: 5px;
+      font-weight: 600;
+      font-size: 11.5px;
+      line-height: 1.4;
+    }
+    .link-btn {
+      color: var(--primary);
+      text-decoration: underline;
+      font-weight: 600;
+    }
+    .watermark {
+      text-align: right;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Sistem Pengecekan Kualitas & Kesesuaian Dokumen Karyawan</h1>
+  <p class="desc">
+    Pilih <b>File Excel Template</b> untuk mengecek dokumen dari link Google Drive, atau tambahkan <b>Upload File Dokumen Lokal</b> (JPG/PNG/PDF) jika ingin memeriksa file langsung dari perangkat Anda. Hasil pengecekan akan langsung tampil sebagai report interaktif di halaman web dan dapat diunduh ke Excel.
+  </p>
+
+  <!-- Area Upload -->
+  <div class="upload-grid">
+    <div class="upload-card">
+      <h3>1. Upload Excel Template (.xlsx / .xls)</h3>
+      <p>Wajib diupload sebagai daftar master karyawan & link dokumen (<code>FORMAT UPLOAD CEK IMAGE.xlsx</code>).</p>
+      <input type="file" id="excelFile" accept=".xlsx, .xls" />
+      <div class="file-info" id="excelFileInfo"></div>
+    </div>
+
+    <div class="upload-card">
+      <h3>2. Upload File Dokumen / Foto Lokal (Opsional)</h3>
+      <p>Pilih banyak file sekaligus (PDF/JPEG/PNG). Sistem otomatis mencocokkan nama file dengan nama karyawan & jenis dokumen.</p>
+      <input type="file" id="localDocsInput" accept="image/*,.pdf" multiple />
+      <div class="file-info" id="localDocsInfo"></div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="btn" id="btnProcess" disabled>Mulai Pengecekan Dokumen</button>
+    <button class="btn btn-success" id="btnDownload" disabled>Download Report Excel (.xlsx)</button>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-wrapper" id="progressWrapper">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div id="statusText">Menyiapkan engine...</div>
+  </div>
+
+  <!-- Report Interaktif di Web -->
+  <div id="reportSection">
+    <div class="kpi-grid">
+      <div class="kpi-card info">
+        <div class="label">Total Karyawan</div>
+        <div class="value" id="kpiEmployees">0</div>
+      </div>
+      <div class="kpi-card info">
+        <div class="label">Total Dokumen Diperiksa</div>
+        <div class="value" id="kpiTotalDocs">0</div>
+      </div>
+      <div class="kpi-card ok">
+        <div class="label">Dokumen Sesuai</div>
+        <div class="value" id="kpiValidDocs">0</div>
+      </div>
+      <div class="kpi-card fail">
+        <div class="label">Dokumen Tidak Sesuai</div>
+        <div class="value" id="kpiInvalidDocs">0</div>
+      </div>
+      <div class="kpi-card info">
+        <div class="label">Tingkat Kelengkapan</div>
+        <div class="value" id="kpiPassRate">0%</div>
+      </div>
+    </div>
+
+    <div class="report-controls">
+      <div class="tabs">
+        <button class="tab-btn active" id="tabMatrixBtn" onclick="switchTab('matrix')">Matriks Per Karyawan</button>
+        <button class="tab-btn" id="tabIssuesBtn" onclick="switchTab('issues')">Rincian Tidak Sesuai (<span id="issueCountBadge">0</span>)</button>
+      </div>
+
+      <div class="filter-group">
+        <input type="text" id="searchInput" placeholder="Cari NIK / Nama karyawan..." oninput="applyFilters()" />
+        <select id="statusFilter" onchange="applyFilters()">
+          <option value="ALL">Semua Status</option>
+          <option value="HAS_ISSUE">Ada Dokumen Tidak Sesuai</option>
+          <option value="ALL_VALID">Semua Dokumen Sesuai</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Tabel 1: Matriks Per Karyawan -->
+    <div class="table-container" id="matrixView">
+      <table id="matrixTable">
+        <thead id="matrixHead"></thead>
+        <tbody id="matrixBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Tabel 2: Rincian Dokumen Tidak Sesuai -->
+    <div class="table-container" id="issuesView" style="display:none;">
+      <table id="issuesTable">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Nomor Induk Karyawan</th>
+            <th>Nama Lengkap Karyawan</th>
+            <th>Judul Kolom Dokumen</th>
+            <th>Status</th>
+            <th>Alasan Tidak Sesuai</th>
+            <th>Sumber / Link</th>
+          </tr>
+        </thead>
+        <tbody id="issuesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="watermark">powered by Asy-Syam Sakti</div>
+</div>
+
+<canvas id="workCanvas" style="display:none;"></canvas>
+
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const DOC_COLUMNS = [
+    'KTP',
+    'KARTU KELUARGA',
+    'IJAZAH',
+    'TRANSKIP NILAI',
+    'KARTU BPJS KETENAGAKERJAAN',
+    'KARTU BPJS KESEHATAN',
+    'NPWP',
+    'STR',
+    'SIP',
+    'Sertifikat Pendukung'
+  ];
+
+  // Alias pencocokan nama file lokal
+  const DOC_FILENAME_ALIASES = {
+    'KTP': ['KTP'],
+    'KARTU KELUARGA': ['KARTU KELUARGA', 'KK'],
+    'IJAZAH': ['IJAZAH'],
+    'TRANSKIP NILAI': ['TRANSKRIP', 'TRANSKIP'],
+    'KARTU BPJS KETENAGAKERJAAN': ['BPJS TK', 'KETENAGAKERJAAN', 'BPJSTK'],
+    'KARTU BPJS KESEHATAN': ['BPJS KES', 'KESEHATAN', 'KIS', 'BPJSKES'],
+    'NPWP': ['NPWP'],
+    'STR': ['STR'],
+    'SIP': ['SIP'],
+    'Sertifikat Pendukung': ['SERTIFIKAT', 'CERTIFICATE']
+  };
+
+  const DOC_KEYWORDS = {
+    'KTP': ['PROVINSI', 'NIK', 'NAMA', 'LAHIR', 'ALAMAT', 'KEL', 'KECAMATAN', 'AGAMA', 'PERKAWINAN', 'PEKERJAAN', 'KEWARGANEGARAAN'],
+    'KARTU KELUARGA': ['KARTU KELUARGA', 'KEPALA KELUARGA', 'NIK', 'NAMA LENGKAP', 'SUSUNAN', 'HUBUNGAN', 'DESA', 'KECAMATAN'],
+    'IJAZAH': ['IJAZAH', 'UNIVERSITAS', 'MEMBERIKAN', 'SARJANA', 'FAKULTAS', 'PROGRAM STUDI', 'REKTOR', 'DEKAN', 'KELULUSAN'],
+    'TRANSKIP NILAI': ['TRANSKRIP', 'AKADEMIK', 'MATA KULIAH', 'SKS', 'INDEKS PRESTASI', 'KUMULATIF', 'UNIVERSITAS', 'NIM', 'NOMOR POKOK'],
+    'KARTU BPJS KETENAGAKERJAAN': ['BPJS', 'KETENAGAKERJAAN', 'KARTU PESERTA', 'PESERTA'],
+    'KARTU BPJS KESEHATAN': ['KARTU INDONESIA SEHAT', 'BPJS', 'KESEHATAN', 'NOMOR KARTU', 'FASKES', 'NIK'],
+    'NPWP': ['NPWP', 'PAJAK', 'DIREKTORAT JENDERAL', 'KEMENTERIAN KEUANGAN', 'WAJIB PAJAK'],
+    'STR': ['SURAT TANDA REGISTRASI', 'KONSIL', 'TENAGA KESEHATAN', 'REGISTRASI'],
+    'SIP': ['SURAT IZIN PRAKTIK', 'DINAS KESEHATAN', 'PRAKTIK', 'IZIN'],
+    'Sertifikat Pendukung': ['SERTIFIKAT', 'CERTIFICATE', 'PELATIHAN', 'KOMPETENSI', 'DIBERIKAN KEPADA']
+  };
+
+  let rawRows = [];
+  let localFiles = [];
+  let finalResults = [];
+  let detailIssues = [];
+  let ocrWorker = null;
+
+  const excelFileInput = document.getElementById('excelFile');
+  const localDocsInput = document.getElementById('localDocsInput');
+  const btnProcess = document.getElementById('btnProcess');
+  const btnDownload = document.getElementById('btnDownload');
+  const progressWrapper = document.getElementById('progressWrapper');
+  const progressFill = document.getElementById('progressFill');
+  const statusText = document.getElementById('statusText');
+
+  excelFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      rawRows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+      
+      if (rawRows.length > 0) {
+        btnProcess.disabled = false;
+        document.getElementById('excelFileInfo').innerText = `✔ ${file.name} (${rawRows.length} karyawan dimuat)`;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  localDocsInput.addEventListener('change', (e) => {
+    localFiles = Array.from(e.target.files || []);
+    if (localFiles.length > 0) {
+      document.getElementById('localDocsInfo').innerText = `✔ ${localFiles.length} file lokal siap dicocokkan`;
+    } else {
+      document.getElementById('localDocsInfo').innerText = '';
+    }
+  });
+
+  // Cari apakah ada file lokal yang cocok dengan Nama Karyawan & Jenis Dokumen
+  function findMatchingLocalFile(employeeName, docCol) {
+    if (localFiles.length === 0 || !employeeName) return null;
+    const upperEmp = employeeName.toUpperCase().trim();
+    const firstName = upperEmp.split(/\s+/)[0];
+    const aliases = DOC_FILENAME_ALIASES[docCol] || [docCol.toUpperCase()];
+
+    return localFiles.find(f => {
+      const fname = f.name.toUpperCase();
+      const nameMatch = fname.includes(upperEmp) || (firstName.length >= 3 && fname.includes(firstName));
+      const docMatch = aliases.some(alias => fname.includes(alias));
+      return nameMatch && docMatch;
+    }) || null;
+  }
+
+  function extractDriveId(url) {
+    if (!url || typeof url !== 'string') return null;
+    const trimmed = url.trim();
+    const match1 = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match1) return match1[1];
+    const match2 = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match2) return match2[1];
+    return null;
+  }
+
+  // Render File Lokal (Gambar atau PDF) ke Canvas
+  async function loadLocalFileToCanvas(file) {
+    const canvas = document.getElementById('workCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 2.0 });
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+      return canvas;
+    } else {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = dataUrl;
+      });
+
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      return canvas;
+    }
+  }
+
+  // Render URL / Google Drive ke Canvas
+  async function loadUrlToCanvas(url) {
+    const canvas = document.getElementById('workCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const driveId = extractDriveId(url);
+
+    const imgUrl = driveId 
+      ? `https://lh3.googleusercontent.com/d/${driveId}=w1600` 
+      : url;
+
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = 'Anonymous';
+        image.onload = () => resolve(image);
+        image.onerror = (err) => reject(err);
+        image.src = imgUrl;
+      });
+
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      return canvas;
+    } catch (e) {
+      const pdfUrl = driveId
+        ? `https://corsproxy.io/?${encodeURIComponent(`https://drive.google.com/uc?export=download&id=${driveId}`)}`
+        : url;
+
+      let response;
+      try {
+        response = await fetch(pdfUrl);
+      } catch (fetchErr) {
+        throw new Error('Link tidak dapat diakses / izin Google Drive masih Private');
+      }
+
+      if (!response.ok) {
+        throw new Error(`File gagal diunduh (HTTP ${response.status} / link rusak)`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+
+      try {
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 2.0 });
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        return canvas;
+      } catch (pdfErr) {
+        throw new Error('Format file rusak / bukan gambar maupun PDF valid');
+      }
+    }
+  }
+
+  function analyzeImageQuality(canvas) {
+    const width = canvas.width;
+    const height = canvas.height;
+
+    if (width < 300 || height < 200) {
+      return { valid: false, reason: 'Foto terlalu jauh / resolusi terlalu kecil' };
+    }
+
+    const scale = Math.min(1, 600 / width);
+    const sw = Math.floor(width * scale);
+    const sh = Math.floor(height * scale);
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = sw;
+    tempCanvas.height = sh;
+    const tCtx = tempCanvas.getContext('2d');
+    tCtx.drawImage(canvas, 0, 0, sw, sh);
+
+    const imgData = tCtx.getImageData(0, 0, sw, sh).data;
+    const gray = new Float32Array(sw * sh);
+
+    let sum = 0;
+    for (let i = 0, j = 0; i < imgData.length; i += 4, j++) {
+      const lum = 0.299 * imgData[i] + 0.587 * imgData[i + 1] + 0.114 * imgData[i + 2];
+      gray[j] = lum;
+      sum += lum;
+    }
+
+    const mean = sum / gray.length;
+
+    let varianceIntensity = 0;
+    for (let i = 0; i < gray.length; i++) {
+      const diff = gray[i] - mean;
+      varianceIntensity += diff * diff;
+    }
+    const stdDev = Math.sqrt(varianceIntensity / gray.length);
+
+    if (stdDev < 12) {
+      return { valid: false, reason: 'Gambar blank / kosong / satu warna polos' };
+    }
+
+    let lapSum = 0;
+    let lapSqSum = 0;
+    let count = 0;
+
+    for (let y = 1; y < sh - 1; y++) {
+      for (let x = 1; x < sw - 1; x++) {
+        const idx = y * sw + x;
+        const lap =
+          gray[idx - sw] +
+          gray[idx - 1] +
+          gray[idx + 1] +
+          gray[idx + sw] -
+          4 * gray[idx];
+        lapSum += lap;
+        lapSqSum += lap * lap;
+        count++;
+      }
+    }
+
+    const lapMean = lapSum / count;
+    const lapVariance = (lapSqSum / count) - (lapMean * lapMean);
+
+    if (lapVariance < 65) {
+      return { valid: false, reason: 'Foto blur / buram / tidak fokus' };
+    }
+
+    return { valid: true, lapVariance };
+  }
+
+  async function verifyDocumentContent(canvas, docType) {
+    const { data: { text } } = await ocrWorker.recognize(canvas);
+    const upperText = text.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').trim();
+
+    if (upperText.length < 15) {
+      return { valid: false, reason: 'Foto terlalu jauh / teks dokumen tidak terbaca' };
+    }
+
+    const keywords = DOC_KEYWORDS[docType] || [];
+    if (keywords.length === 0) return { valid: true };
+
+    const matched = keywords.some(kw => upperText.includes(kw));
+    if (!matched) {
+      return { valid: false, reason: `Isi dokumen tidak cocok dengan ${docType} / salah upload` };
+    }
+
+    return { valid: true };
+  }
+
+  btnProcess.addEventListener('click', async () => {
+    btnProcess.disabled = true;
+    btnDownload.disabled = true;
+    progressWrapper.style.display = 'block';
+    finalResults = [];
+    detailIssues = [];
+
+    statusText.innerText = 'Memuat mesin OCR (hanya pertama kali)...';
+    if (!ocrWorker) {
+      ocrWorker = await Tesseract.createWorker('ind+eng');
+    }
+
+    const totalSteps = rawRows.length * DOC_COLUMNS.length;
+    let currentStep = 0;
+    let validCount = 0;
+
+    for (let r = 0; r < rawRows.length; r++) {
+      const row = rawRows[r];
+      const nik = String(row['Nomor Induk Karyawan'] || '').trim();
+      const nama = String(row['Nama Lengkap Karyawan'] || '').trim();
+
+      const resultRow = {
+        'Nomor Induk Karyawan': nik,
+        'Nama Lengkap Karyawan': nama
+      };
+
+      for (const colName of DOC_COLUMNS) {
+        currentStep++;
+        const pct = Math.round((currentStep / totalSteps) * 100);
+        progressFill.style.width = `${pct}%`;
+        statusText.innerText = `Memeriksa [${r + 1}/${rawRows.length}] ${nama} - Kolom: ${colName} (${pct}%)`;
+
+        const link = String(row[colName] || '').trim();
+        const matchedLocal = findMatchingLocalFile(nama, colName);
+
+        const recordFailure = (reasonText, sourceLabel) => {
+          resultRow[colName] = `file tidak sesuai (${reasonText})`;
+          detailIssues.push({
+            'Nomor Induk Karyawan': nik,
+            'Nama Lengkap Karyawan': nama,
+            'Judul Kolom Dokumen': colName,
+            'Status': 'file tidak sesuai',
+            'Alasan Tidak Sesuai': reasonText,
+            'Link Dokumen': sourceLabel
+          });
+        };
+
+        // Jika tidak ada file lokal dan link Excel kosong/tidak valid
+        if (!matchedLocal && (!link || !link.startsWith('http'))) {
+          recordFailure('Link kosong atau format URL tidak valid', link || '(Kosong)');
+          continue;
+        }
+
+        try {
+          // Prioritaskan file lokal jika diupload, jika tidak ambil dari link URL
+          const canvas = matchedLocal 
+            ? await loadLocalFileToCanvas(matchedLocal)
+            : await loadUrlToCanvas(link);
+
+          const quality = analyzeImageQuality(canvas);
+          if (!quality.valid) {
+            recordFailure(quality.reason, matchedLocal ? `File Lokal: ${matchedLocal.name}` : link);
+            continue;
+          }
+
+          const contentCheck = await verifyDocumentContent(canvas, colName);
+          if (!contentCheck.valid) {
+            recordFailure(contentCheck.reason, matchedLocal ? `File Lokal: ${matchedLocal.name}` : link);
+            continue;
+          }
+
+          resultRow[colName] = 'sesuai';
+          validCount++;
+        } catch (err) {
+          recordFailure(err.message || 'File gagal diakses / link rusak', matchedLocal ? `File Lokal: ${matchedLocal.name}` : link);
+        }
+      }
+
+      finalResults.push(resultRow);
+    }
+
+    const totalDocs = totalSteps;
+    const invalidCount = detailIssues.length;
+    const passRate = totalDocs > 0 ? ((validCount / totalDocs) * 100).toFixed(1) : 0;
+
+    // Update KPI Cards di Web
+    document.getElementById('kpiEmployees').innerText = rawRows.length;
+    document.getElementById('kpiTotalDocs').innerText = totalDocs;
+    document.getElementById('kpiValidDocs').innerText = validCount;
+    document.getElementById('kpiInvalidDocs').innerText = invalidCount;
+    document.getElementById('kpiPassRate').innerText = `${passRate}%`;
+    document.getElementById('issueCountBadge').innerText = invalidCount;
+
+    statusText.innerText = `Pengecekan selesai! ${validCount} sesuai, ${invalidCount} tidak sesuai.`;
+    document.getElementById('reportSection').style.display = 'block';
+    
+    applyFilters();
+    btnProcess.disabled = false;
+    btnDownload.disabled = false;
+  });
+
+  function switchTab(tabName) {
+    const matrixView = document.getElementById('matrixView');
+    const issuesView = document.getElementById('issuesView');
+    const tabMatrixBtn = document.getElementById('tabMatrixBtn');
+    const tabIssuesBtn = document.getElementById('tabIssuesBtn');
+
+    if (tabName === 'matrix') {
+      matrixView.style.display = 'block';
+      issuesView.style.display = 'none';
+      tabMatrixBtn.classList.add('active');
+      tabIssuesBtn.classList.remove('active');
+    } else {
+      matrixView.style.display = 'none';
+      issuesView.style.display = 'block';
+      tabMatrixBtn.classList.remove('active');
+      tabIssuesBtn.classList.add('active');
+    }
+  }
+
+  function applyFilters() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    // Filter Matriks
+    const filteredMatrix = finalResults.filter(row => {
+      const matchText =
+        row['Nomor Induk Karyawan'].toLowerCase().includes(query) ||
+        row['Nama Lengkap Karyawan'].toLowerCase().includes(query);
+      if (!matchText) return false;
+
+      const hasIssue = DOC_COLUMNS.some(col => row[col] !== 'sesuai');
+      if (statusFilter === 'HAS_ISSUE' && !hasIssue) return false;
+      if (statusFilter === 'ALL_VALID' && hasIssue) return false;
+      return true;
+    });
+
+    // Filter Rincian Tidak Sesuai
+    const filteredIssues = detailIssues.filter(item => {
+      return (
+        item['Nomor Induk Karyawan'].toLowerCase().includes(query) ||
+        item['Nama Lengkap Karyawan'].toLowerCase().includes(query) ||
+        item['Judul Kolom Dokumen'].toLowerCase().includes(query) ||
+        item['Alasan Tidak Sesuai'].toLowerCase().includes(query)
+      );
+    });
+
+    renderMatrixTable(filteredMatrix);
+    renderIssuesTable(filteredIssues);
+  }
+
+  function renderMatrixTable(data) {
+    const thead = document.getElementById('matrixHead');
+    const tbody = document.getElementById('matrixBody');
+
+    const headers = ['Nomor Induk Karyawan', 'Nama Lengkap Karyawan', ...DOC_COLUMNS];
+    thead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+
+    if (data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align:center; padding:20px;">Tidak ada data yang cocok dengan filter.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map(row => {
+      return `<tr>${headers.map(h => {
+        const val = row[h];
+        if (val === 'sesuai') return `<td><span class="badge-ok">sesuai</span></td>`;
+        if (val && val.startsWith('file tidak sesuai')) return `<td><span class="badge-fail">${val}</span></td>`;
+        return `<td><strong>${val}</strong></td>`;
+      }).join('')}</tr>`;
+    }).join('');
+  }
+
+  function renderIssuesTable(data) {
+    const tbody = document.getElementById('issuesBody');
+
+    if (data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px;">Tidak ada dokumen tidak sesuai ditemukan.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.map((item, idx) => {
+      const linkCell = item['Link Dokumen'].startsWith('http')
+        ? `<a href="${item['Link Dokumen']}" target="_blank" class="link-btn">Buka Link</a>`
+        : item['Link Dokumen'];
+
+      return `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${item['Nomor Induk Karyawan']}</td>
+          <td><strong>${item['Nama Lengkap Karyawan']}</strong></td>
+          <td>${item['Judul Kolom Dokumen']}</td>
+          <td><span class="badge-fail">${item['Status']}</span></td>
+          <td>${item['Alasan Tidak Sesuai']}</td>
+          <td>${linkCell}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  btnDownload.addEventListener('click', () => {
+    const wb = XLSX.utils.book_new();
+
+    const wsMatrix = XLSX.utils.json_to_sheet(finalResults);
+    XLSX.utils.book_append_sheet(wb, wsMatrix, 'Hasil Cek Dokumen');
+
+    const issueSheetData = detailIssues.length > 0 
+      ? detailIssues 
+      : [{ 'Keterangan': 'Semua dokumen karyawan sudah sesuai' }];
+    const wsIssues = XLSX.utils.json_to_sheet(issueSheetData);
+    XLSX.utils.book_append_sheet(wb, wsIssues, 'Detail Alasan Tidak Sesuai');
+
+    XLSX.writeFile(wb, 'HASIL_CEK_DOKUMEN_KARYAWAN.xlsx');
+  });
+</script>
+
+</body>
+</html>
