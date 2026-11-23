@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Validasi Dokumen & Foto Karyawan (Turbo v2.3 - Landscape & Auto-Rotate)</title>
+  <title>Validasi Dokumen & Foto Karyawan (Turbo v2.4 - Anti-Moire & Auto-Rotate)</title>
   
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -247,10 +247,10 @@
 <div class="container">
   <div class="header-row">
     <h1>Sistem Pengecekan Kualitas & Kesesuaian Dokumen Karyawan</h1>
-    <span class="version-badge">TURBO v2.3 (Landscape Support + Auto-Rotate 360°)</span>
+    <span class="version-badge">TURBO v2.4 (Anti-Moire e-KTP + Auto-Rotate 360°)</span>
   </div>
   <p class="desc">
-    Mendukung dokumen berorientasi <b>Landscape maupun Portrait</b> serta fitur <b>Auto-Rotate (0°, 90°, 270°, 180°)</b> otomatis untuk foto/scan yang miring. Memverifikasi kualitas visual dan mencocokkan isi dokumen (e-KTP, IKD, KK, Ijazah, Transkrip, JMO BPJS TK, Mobile JKN, NPWP, STR, SIP, Sertifikat) dengan data Excel karyawan.
+    Mendukung dokumen berorientasi <b>Landscape maupun Portrait</b>, <b>Auto-Rotate (0°, 270°, 90°, 180°)</b> untuk scan/foto miring, serta pembersih pola <i>moiré</i> pada foto e-KTP fisik &amp; IKD Digital.
   </p>
 
   <div class="ai-box">
@@ -412,8 +412,8 @@
   };
 
   const DOC_KEYWORDS = {
-    'KTP': ['PROVINSI', 'NIK', 'NAMA', 'LAHIR', 'ALAMAT', 'KEL', 'KECAMATAN', 'AGAMA', 'PERKAWINAN', 'PEKERJAAN', 'KEWARGANEGARAAN', 'BERLAKU', 'SEUMUR', 'GOL', 'DARAH', 'STATUS', 'BEKASI', 'JAKARTA', 'JAWA'],
-    'KARTU KELUARGA': ['KARTU KELUARGA', 'KEPALA KELUARGA', 'NIK', 'NAMA LENGKAP', 'SUSUNAN', 'HUBUNGAN', 'DESA', 'KECAMATAN', 'KELUARGA'],
+    'KTP': ['PROVINSI', 'NIK', 'NAMA', 'LAHIR', 'ALAMAT', 'KEL', 'KECAMATAN', 'AGAMA', 'PERKAWINAN', 'PEKERJAAN', 'KEWARGANEGARAAN', 'BERLAKU', 'SEUMUR', 'GOL', 'DARAH', 'STATUS', 'BEKASI', 'JAKARTA', 'JAWA', 'KABUPATEN', 'KOTA'],
+    'KARTU KELUARGA': ['KARTU KELUARGA', 'KEPALA KELUARGA', 'NIK', 'NAMA LENGKAP', 'SUSUNAN', 'HUBUNGAN', 'DESA', 'KECAMATAN', 'KELUARGA', 'REPUBLIK'],
     'IJAZAH': ['IJAZAH', 'UNIVERSITAS', 'MEMBERIKAN', 'SARJANA', 'FAKULTAS', 'PROGRAM STUDI', 'REKTOR', 'DEKAN', 'KELULUSAN', 'GELAR', 'AKREDITASI', 'ISLAM', 'SEKOLAH', 'INSTITUT', 'POLITEKNIK'],
     'TRANSKIP NILAI': ['TRANSKRIP', 'TRANSKIP', 'AKADEMIK', 'MATA KULIAH', 'SKS', 'INDEKS PRESTASI', 'KUMULATIF', 'UNIVERSITAS', 'NIM', 'NOMOR POKOK', 'NILAI', 'SEMESTER'],
     'KARTU BPJS KETENAGAKERJAAN': ['BPJS', 'KETENAGAKERJAAN', 'KARTU PESERTA', 'PESERTA', 'JAMSOSTEK', 'JMO', 'KPJ', 'TENAGA', 'KERJA'],
@@ -572,7 +572,6 @@
 
       const pdf = await pdfjsLib.getDocument({ data: bytes.buffer }).promise;
       const page = await pdf.getPage(1);
-      // PDF.js otomatis menghormati rotasi halaman landscape/portrait dari metadata PDF
       const viewport = page.getViewport({ scale: 1.5 });
 
       canvas.width = viewport.width;
@@ -679,11 +678,11 @@
     }
   }
 
-  // Skala menggunakan sisi terpanjang (maxDim) agar gambar landscape maupun portrait tidak terpotong & tetap proporsional
- function prepareCanvasForOcr(sourceCanvas, maxDim = 1250, angleDeg = 0) {
+  // Filter anti-moire + grayscale natural agar teks hitam di atas kartu biru e-KTP tidak menyatu dengan garis gelombang pengaman
+  function prepareCanvasForOcr(sourceCanvas, maxDim = 1300, angleDeg = 0, useBinarize = false) {
     const longestSide = Math.max(sourceCanvas.width, sourceCanvas.height);
     const scale = longestSide < maxDim 
-      ? Math.min(1.6, maxDim / longestSide) 
+      ? Math.min(1.8, maxDim / longestSide) 
       : Math.min(1, maxDim / longestSide);
 
     const scaledW = Math.round(sourceCanvas.width * scale);
@@ -700,6 +699,8 @@
 
     const ctx = temp.getContext('2d');
     ctx.save();
+    // Gunakan sedikit blur sub-piksel (0.4px) untuk meredam garis gelombang moire pada foto e-KTP fisik
+    ctx.filter = 'blur(0.4px)';
     if (angleDeg === 90) {
       ctx.translate(temp.width, 0);
       ctx.rotate(Math.PI / 2);
@@ -713,12 +714,26 @@
     ctx.drawImage(sourceCanvas, 0, 0, scaledW, scaledH);
     ctx.restore();
 
-    // Grayscale murni tanpa pemotongan kontras agar area gelap/bayangan pada foto KTP & KIS tetap terbaca
     const imgData = ctx.getImageData(0, 0, temp.width, temp.height);
     const d = imgData.data;
+
+    // Hitung rata-rata kecerahan untuk adaptasi otomatis
+    let sumLum = 0;
     for (let i = 0; i < d.length; i += 4) {
-      const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      d[i] = d[i + 1] = d[i + 2] = gray;
+      sumLum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    }
+    const avgLum = sumLum / (d.length / 4);
+
+    for (let i = 0; i < d.length; i += 4) {
+      // Gunakan channel merah (d[i]) lebih dominan pada kartu biru (KTP/KK) karena latar biru menjadi terang di channel merah sementara tinta hitam tetap gelap!
+      const lum = 0.55 * d[i] + 0.35 * d[i + 1] + 0.10 * d[i + 2];
+      if (useBinarize) {
+        const thresh = avgLum * 0.72;
+        const val = lum < thresh ? 0 : 255;
+        d[i] = d[i + 1] = d[i + 2] = val;
+      } else {
+        d[i] = d[i + 1] = d[i + 2] = lum;
+      }
     }
     ctx.putImageData(imgData, 0, 0);
     return temp;
@@ -750,12 +765,12 @@
   }
 
   async function verifyWithGitHubAI(canvas, docType, employeeName, token) {
-    const fastCanvas = prepareCanvasForOcr(canvas, 950, 0);
+    const fastCanvas = prepareCanvasForOcr(canvas, 950, 0, false);
     const base64Image = fastCanvas.toDataURL('image/jpeg', 0.82);
 
     const promptText = `Auditor HRD: Cek gambar untuk kolom "${docType}" milik "${employeeName}".
 Aturan khusus:
-- Terima orientasi gambar baik landscape maupun portrait, termasuk yang terputar 90/180 derajat selama tulisannya terbaca jelas.
+- Terima orientasi gambar baik landscape maupun portrait, termasuk yang terputar 90/180/270 derajat selama tulisannya terbaca jelas.
 - Untuk "KTP": terima foto e-KTP fisik MAUPUN screenshot KTP Digital dari aplikasi Identitas Kependudukan Digital (IKD) yang ber-watermark NIK/tanggal.
 - Untuk "KARTU BPJS KETENAGAKERJAAN": terima kartu fisik, kartu digital JMO, MAUPUN screenshot aplikasi JMO.
 - Untuk "KARTU BPJS KESEHATAN": terima kartu fisik KIS/BPJS maupun kartu digital/screenshot Mobile JKN.
@@ -800,12 +815,11 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     };
   }
 
-  // Cek resolusi menggunakan sisi terpanjang & terpendek (mendukung landscape maupun portrait)
   function analyzeImageQualityLocal(canvas) {
     const longest = Math.max(canvas.width, canvas.height);
     const shortest = Math.min(canvas.width, canvas.height);
 
-    if (longest < 240 || shortest < 140) {
+    if (longest < 220 || shortest < 130) {
       return { valid: false, reason: 'Foto terlalu jauh / resolusi terlalu kecil' };
     }
 
@@ -840,7 +854,7 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     const lapMean = lapSum / count;
     const lapVariance = (lapSqSum / count) - (lapMean * lapMean);
 
-    if (lapVariance < 20) {
+    if (lapVariance < 18) {
       return { valid: false, reason: 'Foto blur / buram / tidak fokus' };
     }
     return { valid: true };
@@ -851,20 +865,20 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     const nama = String(row['Nama Lengkap Karyawan'] || '').toUpperCase().trim();
     if (nama) {
       nama.split(/\s+/).forEach(part => {
-        if (part.length >= 4) hints.push(part);
+        if (part.length >= 3) hints.push(part);
       });
     }
 
     if (docType === 'KTP' || docType === 'KARTU KELUARGA') {
       const nik = String(row['NIK KTP Karyawan'] || row['Nomor Induk Karyawan'] || '').replace(/\D/g, '');
-      if (nik.length >= 8) hints.push(nik.substring(0, 8));
+      if (nik.length >= 6) hints.push(nik.substring(0, 6));
       const noKk = String(row['No Kartu Keluarga'] || '').replace(/\D/g, '');
-      if (noKk.length >= 8) hints.push(noKk.substring(0, 8));
+      if (noKk.length >= 6) hints.push(noKk.substring(0, 6));
     } else if (docType === 'KARTU BPJS KETENAGAKERJAAN') {
       const bpjsTk = String(row['No BPJS Ketenagakerjaan'] || '').replace(/\D/g, '');
       if (bpjsTk.length >= 6) hints.push(bpjsTk.substring(0, 6));
       const nik = String(row['NIK KTP Karyawan'] || '').replace(/\D/g, '');
-      if (nik.length >= 8) hints.push(nik.substring(0, 8));
+      if (nik.length >= 6) hints.push(nik.substring(0, 6));
     } else if (docType === 'KARTU BPJS KESEHATAN') {
       const bpjsKes = String(row['No BPJS Kesehatan'] || '').replace(/\D/g, '');
       if (bpjsKes.length >= 6) hints.push(bpjsKes.substring(0, 6));
@@ -894,36 +908,37 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     const empHintMatched = empHints.some(h => upperText.includes(h) || (/^\d+$/.test(h) && compactDigits.includes(h)));
 
     return {
-      readable: upperText.length >= 10,
+      readable: upperText.length >= 4,
       matched: keywordMatched || empHintMatched
     };
   }
 
-  // OCR dengan dukungan orientasi Landscape normal (0°) + Auto-Rotate (90°, 270°, 180°) jika foto miring/terbalik
   async function verifyDocumentContentLocal(canvas, docType, row) {
     const scheduler = await getOcrScheduler();
     const empHints = buildEmployeeSpecificHints(row, docType);
 
-    // 1. Cek posisi asli (0° — baik landscape maupun portrait tegak langsung lulus di tahap ini)
-    const normalCanvas = prepareCanvasForOcr(canvas, 1150, 0);
+    // 1. Cek posisi asli (0°) dengan Red-Channel Grayscale (menghilangkan latar biru e-KTP/KK)
+    const normalCanvas = prepareCanvasForOcr(canvas, 1300, 0, false);
     const res0 = await scheduler.addJob('recognize', normalCanvas);
     const check0 = matchTextAgainstDoc(res0.data.text, docType, empHints);
-    if (check0.matched) {
-      return { valid: true };
-    }
+    if (check0.matched) return { valid: true };
 
-    // 2. Jika belum cocok, coba rotasi 90° & 270° (untuk foto landscape yang terunggah miring vertikal) & 180° (terbalik)
-    let anyReadable = check0.readable;
-    const fallbackAngles = [90, 270, 180];
+    // 2. Cek posisi asli (0°) dengan Adaptive Binarization (hitam-putih tegas untuk kartu gelap/bayangan)
+    const binCanvas0 = prepareCanvasForOcr(canvas, 1300, 0, true);
+    const resBin0 = await scheduler.addJob('recognize', binCanvas0);
+    const checkBin0 = matchTextAgainstDoc(resBin0.data.text, docType, empHints);
+    if (checkBin0.matched) return { valid: true };
+
+    // 3. Auto-Rotate: 270° (paling sering untuk scan KK/KTP vertikal miring ke kanan), 90°, dan 180°
+    let anyReadable = check0.readable || checkBin0.readable;
+    const fallbackAngles = [270, 90, 180];
 
     for (const angle of fallbackAngles) {
-      const rotatedCanvas = prepareCanvasForOcr(canvas, 1000, angle);
+      const rotatedCanvas = prepareCanvasForOcr(canvas, 1150, angle, false);
       const resRot = await scheduler.addJob('recognize', rotatedCanvas);
       const checkRot = matchTextAgainstDoc(resRot.data.text, docType, empHints);
       if (checkRot.readable) anyReadable = true;
-      if (checkRot.matched) {
-        return { valid: true };
-      }
+      if (checkRot.matched) return { valid: true };
     }
 
     if (!anyReadable) {
