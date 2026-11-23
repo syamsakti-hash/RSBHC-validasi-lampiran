@@ -3,13 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Validasi Dokumen & Foto Karyawan (Turbo v2.1 - GAS Bridge)</title>
+  <title>Validasi Dokumen & Foto Karyawan (Turbo v2.3 - Landscape & Auto-Rotate)</title>
   
-  <!-- Library SheetJS untuk baca/tulis Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- Library PDF.js untuk merender lampiran PDF menjadi Canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- Library Tesseract.js untuk OCR cepat -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
@@ -48,11 +45,7 @@
       flex-wrap: wrap;
       gap: 10px;
     }
-    h1 {
-      margin: 0;
-      font-size: 22px;
-      color: var(--primary);
-    }
+    h1 { margin: 0; font-size: 22px; color: var(--primary); }
     .version-badge {
       background: #dbeafe;
       color: #1e40af;
@@ -61,12 +54,7 @@
       font-size: 12px;
       font-weight: 700;
     }
-    .desc {
-      font-size: 14px;
-      color: #475569;
-      margin: 10px 0 20px 0;
-      line-height: 1.5;
-    }
+    .desc { font-size: 14px; color: #475569; margin: 10px 0 20px 0; line-height: 1.5; }
     .ai-box {
       background: #eff6ff;
       border: 1px solid #bfdbfe;
@@ -74,36 +62,17 @@
       border-radius: 10px;
       margin-bottom: 18px;
     }
-    .ai-box h3 {
-      margin: 0 0 10px 0;
-      font-size: 15px;
-      color: #1e3a8a;
-    }
+    .ai-box h3 { margin: 0 0 10px 0; font-size: 15px; color: #1e3a8a; }
     .ai-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
       margin-bottom: 10px;
     }
-    @media (max-width: 900px) {
-      .ai-grid { grid-template-columns: 1fr; }
-    }
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .field-group label {
-      font-size: 12px;
-      font-weight: 700;
-      color: #1e3a8a;
-    }
-    .ai-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
+    @media (max-width: 900px) { .ai-grid { grid-template-columns: 1fr; } }
+    .field-group { display: flex; flex-direction: column; gap: 4px; }
+    .field-group label { font-size: 12px; font-weight: 700; color: #1e3a8a; }
+    .ai-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
     .field-group input, .ai-row select {
       padding: 9px 12px;
       border: 1px solid #93c5fd;
@@ -111,54 +80,25 @@
       font-size: 13px;
       width: 100%;
     }
-    .ai-row select {
-      width: auto;
-      flex: 1;
-      min-width: 200px;
-    }
-    .ai-hint {
-      font-size: 12px;
-      color: #475569;
-      margin-top: 8px;
-    }
+    .ai-row select { width: auto; flex: 1; min-width: 200px; }
+    .ai-hint { font-size: 12px; color: #475569; margin-top: 8px; }
     .upload-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
       margin-bottom: 18px;
     }
-    @media (max-width: 768px) {
-      .upload-grid { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 768px) { .upload-grid { grid-template-columns: 1fr; } }
     .upload-card {
       border: 2px dashed var(--border);
       padding: 20px;
       border-radius: 10px;
       background: #f1f5f9;
     }
-    .upload-card h3 {
-      margin: 0 0 8px 0;
-      font-size: 15px;
-      color: var(--primary);
-    }
-    .upload-card p {
-      margin: 0 0 12px 0;
-      font-size: 12.5px;
-      color: #475569;
-    }
-    .file-info {
-      margin-top: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--success);
-    }
-    .action-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 16px;
-    }
+    .upload-card h3 { margin: 0 0 8px 0; font-size: 15px; color: var(--primary); }
+    .upload-card p { margin: 0 0 12px 0; font-size: 12.5px; color: #475569; }
+    .file-info { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--success); }
+    .action-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
     .btn {
       background: var(--primary);
       color: #fff;
@@ -168,16 +108,10 @@
       font-weight: 600;
       cursor: pointer;
       font-size: 14px;
-      transition: opacity 0.2s;
     }
-    .btn:hover:not(:disabled) { opacity: 0.9; }
-    .btn:disabled {
-      background: #94a3b8;
-      cursor: not-allowed;
-    }
+    .btn:disabled { background: #94a3b8; cursor: not-allowed; }
     .btn-success { background: var(--success); }
 
-    /* Progress & Countdown Timer */
     .progress-wrapper {
       margin: 16px 0;
       display: none;
@@ -186,13 +120,7 @@
       border-radius: 8px;
       border: 1px solid var(--border);
     }
-    .progress-bar {
-      width: 100%;
-      height: 16px;
-      background: #e2e8f0;
-      border-radius: 8px;
-      overflow: hidden;
-    }
+    .progress-bar { width: 100%; height: 16px; background: #e2e8f0; border-radius: 8px; overflow: hidden; }
     .progress-fill {
       height: 100%;
       width: 0%;
@@ -207,16 +135,8 @@
       margin-top: 10px;
       gap: 8px;
     }
-    #statusText {
-      font-size: 13px;
-      color: #1e293b;
-      font-weight: 600;
-    }
-    .timer-badges {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+    #statusText { font-size: 13px; color: #1e293b; font-weight: 600; }
+    .timer-badges { display: flex; gap: 10px; flex-wrap: wrap; }
     .timer-pill {
       background: #e0e7ff;
       color: #1e3a8a;
@@ -226,7 +146,6 @@
       font-weight: 700;
     }
 
-    /* Dashboard Report Section */
     #reportSection {
       display: none;
       margin-top: 28px;
@@ -239,24 +158,9 @@
       gap: 14px;
       margin-bottom: 22px;
     }
-    .kpi-card {
-      padding: 16px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: #fff;
-    }
-    .kpi-card .label {
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-    .kpi-card .value {
-      font-size: 26px;
-      font-weight: 700;
-      margin-top: 6px;
-      color: var(--text);
-    }
+    .kpi-card { padding: 16px; border-radius: 10px; border: 1px solid var(--border); background: #fff; }
+    .kpi-card .label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+    .kpi-card .value { font-size: 26px; font-weight: 700; margin-top: 6px; color: var(--text); }
     .kpi-card.ok { border-left: 5px solid var(--success); }
     .kpi-card.ok .value { color: var(--success); }
     .kpi-card.fail { border-left: 5px solid var(--danger); }
@@ -272,10 +176,7 @@
       gap: 12px;
       margin-bottom: 14px;
     }
-    .tabs {
-      display: flex;
-      gap: 8px;
-    }
+    .tabs { display: flex; gap: 8px; }
     .tab-btn {
       padding: 9px 16px;
       border: 1px solid var(--border);
@@ -286,16 +187,8 @@
       cursor: pointer;
       color: #334155;
     }
-    .tab-btn.active {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-    }
-    .filter-group {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+    .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
     .filter-group input, .filter-group select {
       padding: 8px 12px;
       border: 1px solid var(--border);
@@ -309,11 +202,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12.5px;
-    }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
     th, td {
       border-bottom: 1px solid var(--border);
       border-right: 1px solid var(--border);
@@ -349,17 +238,8 @@
       font-size: 11.5px;
       line-height: 1.4;
     }
-    .link-btn {
-      color: var(--primary);
-      text-decoration: underline;
-      font-weight: 600;
-    }
-    .watermark {
-      text-align: right;
-      font-size: 11px;
-      color: #94a3b8;
-      margin-top: 24px;
-    }
+    .link-btn { color: var(--primary); text-decoration: underline; font-weight: 600; }
+    .watermark { text-align: right; font-size: 11px; color: #94a3b8; margin-top: 24px; }
   </style>
 </head>
 <body>
@@ -367,13 +247,12 @@
 <div class="container">
   <div class="header-row">
     <h1>Sistem Pengecekan Kualitas & Kesesuaian Dokumen Karyawan</h1>
-    <span class="version-badge">TURBO v2.1 (Google Apps Script + Smart Hybrid AI)</span>
+    <span class="version-badge">TURBO v2.3 (Landscape Support + Auto-Rotate 360°)</span>
   </div>
   <p class="desc">
-    Mendukung penarikan file Google Drive langsung melalui <b>Google Apps Script Web App</b> (bebas blokir HTTP 403/CORS), pengecekan dokumen fisik & digital (<b>IKD KTP Digital, JMO BPJS Ketenagakerjaan, Mobile JKN</b>), serta output report interaktif web & Excel.
+    Mendukung dokumen berorientasi <b>Landscape maupun Portrait</b> serta fitur <b>Auto-Rotate (0°, 90°, 270°, 180°)</b> otomatis untuk foto/scan yang miring. Memverifikasi kualitas visual dan mencocokkan isi dokumen (e-KTP, IKD, KK, Ijazah, Transkrip, JMO BPJS TK, Mobile JKN, NPWP, STR, SIP, Sertifikat) dengan data Excel karyawan.
   </p>
 
-  <!-- Konfigurasi Google Apps Script & GitHub AI -->
   <div class="ai-box">
     <h3>Koneksi Google Drive Bridge & Pengaturan AI</h3>
     <div class="ai-grid">
@@ -389,9 +268,9 @@
 
     <div class="ai-row">
       <select id="checkModeSelect" title="Pilih strategi pengecekan">
-        <option value="HYBRID" selected>Mode: Smart Hybrid (Super Cepat &lt; 1 Menit + AI untuk kasus ragu)</option>
-        <option value="FAST_LOCAL">Mode: Full Lokal Paralel (Tercepat &amp; Tanpa Batas Kuota)</option>
-        <option value="FULL_AI">Mode: Full GitHub Vision AI (Semua dicek AI — kena limit 15 file/menit)</option>
+        <option value="FAST_LOCAL" selected>Mode: Full Lokal Paralel + Auto-Rotate &amp; Cross-Match (Cepat &amp; Akurat)</option>
+        <option value="HYBRID">Mode: Smart Hybrid (Lokal + AI untuk kasus ragu)</option>
+        <option value="FULL_AI">Mode: Full GitHub Vision AI (Semua dicek AI)</option>
       </select>
       <select id="concurrencySelect" title="Jumlah file diproses bersamaan">
         <option value="6" selected>6 File Paralel (Direkomendasikan untuk GAS)</option>
@@ -400,12 +279,9 @@
       </select>
       <button class="btn" style="padding: 9px 16px; font-size: 13px;" onclick="saveConfig()">Simpan Konfigurasi</button>
     </div>
-    <div class="ai-hint" id="configStatusHint">
-      *Tempel URL deployment <b>script.google.com</b> di kotak kiri atas agar file PDF &amp; gambar di Google Drive dapat diunduh langsung tanpa error HTTP 403.
-    </div>
+    <div class="ai-hint" id="configStatusHint"></div>
   </div>
 
-  <!-- Area Upload -->
   <div class="upload-grid">
     <div class="upload-card">
       <h3>1. Upload Excel Template (.xlsx / .xls)</h3>
@@ -427,7 +303,6 @@
     <button class="btn btn-success" id="btnDownload" disabled>Download Report Excel (.xlsx)</button>
   </div>
 
-  <!-- Progress Bar + Estimasi Menit Sampai Selesai -->
   <div class="progress-wrapper" id="progressWrapper">
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     <div class="progress-meta">
@@ -439,7 +314,6 @@
     </div>
   </div>
 
-  <!-- Report Interaktif di Web -->
   <div id="reportSection">
     <div class="kpi-grid">
       <div class="kpi-card info">
@@ -480,7 +354,6 @@
       </div>
     </div>
 
-    <!-- Tabel 1: Matriks Per Karyawan -->
     <div class="table-container" id="matrixView">
       <table id="matrixTable">
         <thead id="matrixHead"></thead>
@@ -488,7 +361,6 @@
       </table>
     </div>
 
-    <!-- Tabel 2: Rincian Dokumen Tidak Sesuai -->
     <div class="table-container" id="issuesView" style="display:none;">
       <table id="issuesTable">
         <thead>
@@ -540,15 +412,15 @@
   };
 
   const DOC_KEYWORDS = {
-    'KTP': ['PROVINSI', 'NIK', 'NAMA', 'LAHIR', 'ALAMAT', 'KEL', 'KECAMATAN', 'AGAMA', 'PERKAWINAN', 'PEKERJAAN', 'KEWARGANEGARAAN', 'BERLAKU', 'SEUMUR'],
-    'KARTU KELUARGA': ['KARTU KELUARGA', 'KEPALA KELUARGA', 'NIK', 'NAMA LENGKAP', 'SUSUNAN', 'HUBUNGAN', 'DESA', 'KECAMATAN'],
-    'IJAZAH': ['IJAZAH', 'UNIVERSITAS', 'MEMBERIKAN', 'SARJANA', 'FAKULTAS', 'PROGRAM STUDI', 'REKTOR', 'DEKAN', 'KELULUSAN'],
-    'TRANSKIP NILAI': ['TRANSKRIP', 'AKADEMIK', 'MATA KULIAH', 'SKS', 'INDEKS PRESTASI', 'KUMULATIF', 'UNIVERSITAS', 'NIM', 'NOMOR POKOK'],
-    'KARTU BPJS KETENAGAKERJAAN': ['BPJS', 'KETENAGAKERJAAN', 'KARTU PESERTA', 'PESERTA', 'JAMSOSTEK', 'JMO', 'KPJ'],
-    'KARTU BPJS KESEHATAN': ['KARTU INDONESIA SEHAT', 'BPJS', 'KESEHATAN', 'NOMOR KARTU', 'FASKES', 'NIK', 'JKN', 'MOBILE'],
+    'KTP': ['PROVINSI', 'NIK', 'NAMA', 'LAHIR', 'ALAMAT', 'KEL', 'KECAMATAN', 'AGAMA', 'PERKAWINAN', 'PEKERJAAN', 'KEWARGANEGARAAN', 'BERLAKU', 'SEUMUR', 'GOL', 'DARAH', 'STATUS', 'BEKASI', 'JAKARTA', 'JAWA'],
+    'KARTU KELUARGA': ['KARTU KELUARGA', 'KEPALA KELUARGA', 'NIK', 'NAMA LENGKAP', 'SUSUNAN', 'HUBUNGAN', 'DESA', 'KECAMATAN', 'KELUARGA'],
+    'IJAZAH': ['IJAZAH', 'UNIVERSITAS', 'MEMBERIKAN', 'SARJANA', 'FAKULTAS', 'PROGRAM STUDI', 'REKTOR', 'DEKAN', 'KELULUSAN', 'GELAR', 'AKREDITASI', 'ISLAM', 'SEKOLAH', 'INSTITUT', 'POLITEKNIK'],
+    'TRANSKIP NILAI': ['TRANSKRIP', 'TRANSKIP', 'AKADEMIK', 'MATA KULIAH', 'SKS', 'INDEKS PRESTASI', 'KUMULATIF', 'UNIVERSITAS', 'NIM', 'NOMOR POKOK', 'NILAI', 'SEMESTER'],
+    'KARTU BPJS KETENAGAKERJAAN': ['BPJS', 'KETENAGAKERJAAN', 'KARTU PESERTA', 'PESERTA', 'JAMSOSTEK', 'JMO', 'KPJ', 'TENAGA', 'KERJA'],
+    'KARTU BPJS KESEHATAN': ['KARTU INDONESIA SEHAT', 'BPJS', 'KESEHATAN', 'NOMOR KARTU', 'FASKES', 'NIK', 'JKN', 'MOBILE', 'SEHAT'],
     'NPWP': ['NPWP', 'PAJAK', 'DIREKTORAT JENDERAL', 'KEMENTERIAN KEUANGAN', 'WAJIB PAJAK'],
-    'STR': ['SURAT TANDA REGISTRASI', 'KONSIL', 'TENAGA KESEHATAN', 'REGISTRASI'],
-    'SIP': ['SURAT IZIN PRAKTIK', 'DINAS KESEHATAN', 'PRAKTIK', 'IZIN'],
+    'STR': ['SURAT TANDA REGISTRASI', 'KONSIL', 'TENAGA KESEHATAN', 'REGISTRASI', 'STR'],
+    'SIP': ['SURAT IZIN PRAKTIK', 'DINAS KESEHATAN', 'PRAKTIK', 'IZIN', 'SIP'],
     'Sertifikat Pendukung': ['SERTIFIKAT', 'CERTIFICATE', 'PELATIHAN', 'KOMPETENSI', 'DIBERIKAN KEPADA']
   };
 
@@ -575,11 +447,9 @@
     const parts = [];
     if (gas) parts.push('<span style="color:#16a34a; font-weight:600;">✔ Google Apps Script Bridge Aktif</span>');
     if (tok) parts.push('<span style="color:#16a34a; font-weight:600;">✔ Token GitHub AI Aktif</span>');
-    if (parts.length > 0) {
-      hint.innerHTML = parts.join(' &nbsp;|&nbsp; ');
-    } else {
-      hint.innerHTML = '*Tempel URL deployment <b>script.google.com</b> di kotak kiri atas agar file PDF &amp; gambar di Google Drive dapat diunduh langsung tanpa error HTTP 403.';
-    }
+    hint.innerHTML = parts.length > 0
+      ? parts.join(' &nbsp;|&nbsp; ')
+      : '*Tempel URL deployment <b>script.google.com</b> di kotak kiri atas agar file PDF &amp; gambar di Google Drive dapat diunduh langsung tanpa error HTTP 403.';
   }
 
   function saveConfig() {
@@ -675,7 +545,7 @@
     return null;
   }
 
-  async function fetchWithTimeout(resource, timeoutMs = 12000) {
+  async function fetchWithTimeout(resource, timeoutMs = 15000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -688,7 +558,6 @@
     }
   }
 
-  // Konversi Base64 (hasil dari Google Apps Script) menjadi Canvas (mendukung Image maupun PDF)
   async function base64PayloadToCanvas(base64Data, mimeType) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -703,7 +572,8 @@
 
       const pdf = await pdfjsLib.getDocument({ data: bytes.buffer }).promise;
       const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.25 });
+      // PDF.js otomatis menghormati rotasi halaman landscape/portrait dari metadata PDF
+      const viewport = page.getViewport({ scale: 1.5 });
 
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -733,7 +603,7 @@
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.25 });
+      const viewport = page.getViewport({ scale: 1.5 });
 
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -761,13 +631,12 @@
   async function loadUrlToNewCanvas(url, gasUrl) {
     const driveId = extractDriveId(url);
 
-    // 1. Jika Google Apps Script Web App URL diisi dan link adalah Google Drive -> tarik lewat GAS (Anti 403)
     if (gasUrl && driveId) {
       const sep = gasUrl.includes('?') ? '&' : '?';
       const endpoint = `${gasUrl}${sep}id=${encodeURIComponent(driveId)}`;
       let res;
       try {
-        res = await fetchWithTimeout(endpoint, 15000);
+        res = await fetchWithTimeout(endpoint, 18000);
       } catch (err) {
         throw new Error('Timeout saat mengambil file dari Google Apps Script');
       }
@@ -787,16 +656,15 @@
       return await base64PayloadToCanvas(json.base64, json.mimeType);
     }
 
-    // 2. Fallback langsung (jika URL Google Apps Script tidak diisi)
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const imgUrl = driveId ? `https://lh3.googleusercontent.com/d/${driveId}=w900` : url;
+    const imgUrl = driveId ? `https://lh3.googleusercontent.com/d/${driveId}=w1000` : url;
 
     try {
       const img = await new Promise((resolve, reject) => {
         const image = new Image();
         image.crossOrigin = 'Anonymous';
-        const timer = setTimeout(() => reject(new Error('Image timeout')), 4000);
+        const timer = setTimeout(() => reject(new Error('Image timeout')), 5000);
         image.onload = () => { clearTimeout(timer); resolve(image); };
         image.onerror = (err) => { clearTimeout(timer); reject(err); };
         image.src = imgUrl;
@@ -807,45 +675,56 @@
       ctx.drawImage(img, 0, 0);
       return canvas;
     } catch (e) {
-      const pdfUrl = driveId
-        ? `https://corsproxy.io/?${encodeURIComponent(`https://drive.google.com/uc?export=download&id=${driveId}`)}`
-        : url;
-
-      let response;
-      try {
-        response = await fetchWithTimeout(pdfUrl, 5500);
-      } catch (fetchErr) {
-        throw new Error('Link timeout / izin Google Drive masih Private (Isi URL Google Apps Script)');
-      }
-
-      if (!response.ok) {
-        throw new Error(`File gagal diunduh (HTTP ${response.status} — Gunakan Google Apps Script)`);
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      try {
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 1.25 });
-
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-        return canvas;
-      } catch (pdfErr) {
-        throw new Error('Format file rusak / bukan gambar maupun PDF valid');
-      }
+      throw new Error('File gagal diunduh (Pastikan URL Google Apps Script sudah diisi)');
     }
   }
 
-  function resizeCanvasForFastCheck(sourceCanvas, maxW = 750) {
-    if (sourceCanvas.width <= maxW) return sourceCanvas;
-    const scale = maxW / sourceCanvas.width;
+  // Skala menggunakan sisi terpanjang (maxDim) agar gambar landscape maupun portrait tidak terpotong & tetap proporsional
+  function prepareCanvasForOcr(sourceCanvas, maxDim = 1150, angleDeg = 0) {
+    const longestSide = Math.max(sourceCanvas.width, sourceCanvas.height);
+    const scale = longestSide < maxDim 
+      ? Math.min(1.5, maxDim / longestSide) 
+      : Math.min(1, maxDim / longestSide);
+
+    const scaledW = Math.round(sourceCanvas.width * scale);
+    const scaledH = Math.round(sourceCanvas.height * scale);
+
     const temp = document.createElement('canvas');
-    temp.width = Math.round(sourceCanvas.width * scale);
-    temp.height = Math.round(sourceCanvas.height * scale);
+    if (angleDeg === 90 || angleDeg === 270) {
+      temp.width = scaledH;
+      temp.height = scaledW;
+    } else {
+      temp.width = scaledW;
+      temp.height = scaledH;
+    }
+
     const ctx = temp.getContext('2d');
-    ctx.drawImage(sourceCanvas, 0, 0, temp.width, temp.height);
+    ctx.save();
+    if (angleDeg === 90) {
+      ctx.translate(temp.width, 0);
+      ctx.rotate(Math.PI / 2);
+    } else if (angleDeg === 180) {
+      ctx.translate(temp.width, temp.height);
+      ctx.rotate(Math.PI);
+    } else if (angleDeg === 270) {
+      ctx.translate(0, temp.height);
+      ctx.rotate(-Math.PI / 2);
+    }
+    ctx.drawImage(sourceCanvas, 0, 0, scaledW, scaledH);
+    ctx.restore();
+
+    // Tingkatkan kontras grayscale agar teks ber-watermark (IKD) & font tipis terbaca jelas
+    const imgData = ctx.getImageData(0, 0, temp.width, temp.height);
+    const d = imgData.data;
+    const contrast = 1.25;
+    const intercept = 128 * (1 - contrast);
+
+    for (let i = 0; i < d.length; i += 4) {
+      const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      const adj = Math.min(255, Math.max(0, gray * contrast + intercept));
+      d[i] = d[i + 1] = d[i + 2] = adj;
+    }
+    ctx.putImageData(imgData, 0, 0);
     return temp;
   }
 
@@ -875,11 +754,12 @@
   }
 
   async function verifyWithGitHubAI(canvas, docType, employeeName, token) {
-    const fastCanvas = resizeCanvasForFastCheck(canvas, 750);
-    const base64Image = fastCanvas.toDataURL('image/jpeg', 0.78);
+    const fastCanvas = prepareCanvasForOcr(canvas, 950, 0);
+    const base64Image = fastCanvas.toDataURL('image/jpeg', 0.82);
 
     const promptText = `Auditor HRD: Cek gambar untuk kolom "${docType}" milik "${employeeName}".
 Aturan khusus:
+- Terima orientasi gambar baik landscape maupun portrait, termasuk yang terputar 90/180 derajat selama tulisannya terbaca jelas.
 - Untuk "KTP": terima foto e-KTP fisik MAUPUN screenshot KTP Digital dari aplikasi Identitas Kependudukan Digital (IKD) yang ber-watermark NIK/tanggal.
 - Untuk "KARTU BPJS KETENAGAKERJAAN": terima kartu fisik, kartu digital JMO, MAUPUN screenshot aplikasi JMO.
 - Untuk "KARTU BPJS KESEHATAN": terima kartu fisik KIS/BPJS maupun kartu digital/screenshot Mobile JKN.
@@ -909,9 +789,7 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     });
 
     if (!response.ok) {
-      if (response.status === 429 || response.status === 401) {
-        aiRateLimited = true;
-      }
+      if (response.status === 429 || response.status === 401) aiRateLimited = true;
       throw new Error(`HTTP_${response.status}`);
     }
 
@@ -926,12 +804,16 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     };
   }
 
+  // Cek resolusi menggunakan sisi terpanjang & terpendek (mendukung landscape maupun portrait)
   function analyzeImageQualityLocal(canvas) {
-    if (canvas.width < 240 || canvas.height < 150) {
+    const longest = Math.max(canvas.width, canvas.height);
+    const shortest = Math.min(canvas.width, canvas.height);
+
+    if (longest < 240 || shortest < 140) {
       return { valid: false, reason: 'Foto terlalu jauh / resolusi terlalu kecil' };
     }
 
-    const scale = Math.min(1, 450 / canvas.width);
+    const scale = Math.min(1, 450 / longest);
     const sw = Math.floor(canvas.width * scale);
     const sh = Math.floor(canvas.height * scale);
 
@@ -962,30 +844,96 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     const lapMean = lapSum / count;
     const lapVariance = (lapSqSum / count) - (lapMean * lapMean);
 
-    if (lapVariance < 25) {
+    if (lapVariance < 20) {
       return { valid: false, reason: 'Foto blur / buram / tidak fokus' };
     }
     return { valid: true };
   }
 
-  async function verifyDocumentContentLocal(canvas, docType) {
-    const scheduler = await getOcrScheduler();
-    const fastCanvas = resizeCanvasForFastCheck(canvas, 750);
-    const { data: { text } } = await scheduler.addJob('recognize', fastCanvas);
-    const upperText = text.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').trim();
+  function buildEmployeeSpecificHints(row, docType) {
+    const hints = [];
+    const nama = String(row['Nama Lengkap Karyawan'] || '').toUpperCase().trim();
+    if (nama) {
+      nama.split(/\s+/).forEach(part => {
+        if (part.length >= 4) hints.push(part);
+      });
+    }
 
-    if (upperText.length < 12) {
+    if (docType === 'KTP' || docType === 'KARTU KELUARGA') {
+      const nik = String(row['NIK KTP Karyawan'] || row['Nomor Induk Karyawan'] || '').replace(/\D/g, '');
+      if (nik.length >= 8) hints.push(nik.substring(0, 8));
+      const noKk = String(row['No Kartu Keluarga'] || '').replace(/\D/g, '');
+      if (noKk.length >= 8) hints.push(noKk.substring(0, 8));
+    } else if (docType === 'KARTU BPJS KETENAGAKERJAAN') {
+      const bpjsTk = String(row['No BPJS Ketenagakerjaan'] || '').replace(/\D/g, '');
+      if (bpjsTk.length >= 6) hints.push(bpjsTk.substring(0, 6));
+      const nik = String(row['NIK KTP Karyawan'] || '').replace(/\D/g, '');
+      if (nik.length >= 8) hints.push(nik.substring(0, 8));
+    } else if (docType === 'KARTU BPJS KESEHATAN') {
+      const bpjsKes = String(row['No BPJS Kesehatan'] || '').replace(/\D/g, '');
+      if (bpjsKes.length >= 6) hints.push(bpjsKes.substring(0, 6));
+    } else if (docType === 'IJAZAH' || docType === 'TRANSKIP NILAI') {
+      const univ = String(row['Nama Sekolah/Universitas'] || '').toUpperCase().trim();
+      univ.split(/\s+/).forEach(w => {
+        if (w.length >= 4) hints.push(w);
+      });
+      const jur = String(row['Jurusan'] || '').toUpperCase().trim();
+      jur.split(/\s+/).forEach(w => {
+        if (w.length >= 4) hints.push(w);
+      });
+    } else if (docType === 'NPWP') {
+      const npwp = String(row['Nomor NPWP'] || '').replace(/\D/g, '');
+      if (npwp.length >= 6) hints.push(npwp.substring(0, 6));
+    }
+
+    return hints;
+  }
+
+  function matchTextAgainstDoc(text, docType, empHints) {
+    const upperText = text.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').trim();
+    const compactDigits = text.replace(/\D/g, '');
+    const keywords = DOC_KEYWORDS[docType] || [];
+
+    const keywordMatched = keywords.some(kw => upperText.includes(kw));
+    const empHintMatched = empHints.some(h => upperText.includes(h) || (/^\d+$/.test(h) && compactDigits.includes(h)));
+
+    return {
+      readable: upperText.length >= 10,
+      matched: keywordMatched || empHintMatched
+    };
+  }
+
+  // OCR dengan dukungan orientasi Landscape normal (0°) + Auto-Rotate (90°, 270°, 180°) jika foto miring/terbalik
+  async function verifyDocumentContentLocal(canvas, docType, row) {
+    const scheduler = await getOcrScheduler();
+    const empHints = buildEmployeeSpecificHints(row, docType);
+
+    // 1. Cek posisi asli (0° — baik landscape maupun portrait tegak langsung lulus di tahap ini)
+    const normalCanvas = prepareCanvasForOcr(canvas, 1150, 0);
+    const res0 = await scheduler.addJob('recognize', normalCanvas);
+    const check0 = matchTextAgainstDoc(res0.data.text, docType, empHints);
+    if (check0.matched) {
+      return { valid: true };
+    }
+
+    // 2. Jika belum cocok, coba rotasi 90° & 270° (untuk foto landscape yang terunggah miring vertikal) & 180° (terbalik)
+    let anyReadable = check0.readable;
+    const fallbackAngles = [90, 270, 180];
+
+    for (const angle of fallbackAngles) {
+      const rotatedCanvas = prepareCanvasForOcr(canvas, 1000, angle);
+      const resRot = await scheduler.addJob('recognize', rotatedCanvas);
+      const checkRot = matchTextAgainstDoc(resRot.data.text, docType, empHints);
+      if (checkRot.readable) anyReadable = true;
+      if (checkRot.matched) {
+        return { valid: true };
+      }
+    }
+
+    if (!anyReadable) {
       return { valid: false, reason: 'Foto terlalu jauh / teks dokumen tidak terbaca' };
     }
-
-    const keywords = DOC_KEYWORDS[docType] || [];
-    if (keywords.length === 0) return { valid: true };
-
-    const matched = keywords.some(kw => upperText.includes(kw));
-    if (!matched) {
-      return { valid: false, reason: `Isi dokumen tidak cocok dengan ${docType} / salah upload` };
-    }
-    return { valid: true };
+    return { valid: false, reason: `Isi dokumen tidak cocok dengan ${docType} / salah upload` };
   }
 
   btnProcess.addEventListener('click', async () => {
@@ -1018,6 +966,7 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
       for (const colName of DOC_COLUMNS) {
         tasks.push({
           rIdx,
+          row,
           nik,
           nama,
           colName,
@@ -1048,7 +997,7 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
       while (taskCursor < tasks.length) {
         const currentIndex = taskCursor++;
         const task = tasks[currentIndex];
-        const { rIdx, nik, nama, colName, link } = task;
+        const { rIdx, row, nik, nama, colName, link } = task;
 
         const matchedLocal = findMatchingLocalFile(nama, colName);
 
@@ -1082,14 +1031,14 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
                   checkResult = await verifyWithGitHubAI(canvas, colName, nama, ghToken);
                 } catch (e) {
                   const qLocal = analyzeImageQualityLocal(canvas);
-                  checkResult = !qLocal.valid ? qLocal : await verifyDocumentContentLocal(canvas, colName);
+                  checkResult = !qLocal.valid ? qLocal : await verifyDocumentContentLocal(canvas, colName, row);
                 }
               } else if (checkMode === 'HYBRID') {
                 const qLocal = analyzeImageQualityLocal(canvas);
                 if (!qLocal.valid) {
                   checkResult = qLocal;
                 } else {
-                  const ocrRes = await verifyDocumentContentLocal(canvas, colName);
+                  const ocrRes = await verifyDocumentContentLocal(canvas, colName, row);
                   if (ocrRes.valid) {
                     checkResult = ocrRes;
                   } else if (ghToken && !aiRateLimited) {
@@ -1104,7 +1053,7 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
                 }
               } else {
                 const qLocal = analyzeImageQualityLocal(canvas);
-                checkResult = !qLocal.valid ? qLocal : await verifyDocumentContentLocal(canvas, colName);
+                checkResult = !qLocal.valid ? qLocal : await verifyDocumentContentLocal(canvas, colName, row);
               }
 
               if (!checkResult.valid) {
