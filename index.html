@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Validasi Dokumen & Foto Karyawan (Turbo v2)</title>
+  <title>Validasi Dokumen & Foto Karyawan (Turbo v2.1 - GAS Bridge)</title>
   
   <!-- Library SheetJS untuk baca/tulis Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -75,8 +75,27 @@
       margin-bottom: 18px;
     }
     .ai-box h3 {
-      margin: 0 0 8px 0;
+      margin: 0 0 10px 0;
       font-size: 15px;
+      color: #1e3a8a;
+    }
+    .ai-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    @media (max-width: 900px) {
+      .ai-grid { grid-template-columns: 1fr; }
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field-group label {
+      font-size: 12px;
+      font-weight: 700;
       color: #1e3a8a;
     }
     .ai-row {
@@ -85,15 +104,17 @@
       gap: 10px;
       align-items: center;
     }
-    .ai-row input, .ai-row select {
+    .field-group input, .ai-row select {
       padding: 9px 12px;
       border: 1px solid #93c5fd;
       border-radius: 6px;
       font-size: 13px;
+      width: 100%;
     }
-    .ai-row input[type="password"] {
+    .ai-row select {
+      width: auto;
       flex: 1;
-      min-width: 220px;
+      min-width: 200px;
     }
     .ai-hint {
       font-size: 12px;
@@ -346,31 +367,41 @@
 <div class="container">
   <div class="header-row">
     <h1>Sistem Pengecekan Kualitas & Kesesuaian Dokumen Karyawan</h1>
-    <span class="version-badge">TURBO v2.0 (8x Paralel + Smart Hybrid AI)</span>
+    <span class="version-badge">TURBO v2.1 (Google Apps Script + Smart Hybrid AI)</span>
   </div>
   <p class="desc">
-    Mendukung pengecekan dokumen fisik maupun digital (<b>IKD KTP Digital, JMO BPJS Ketenagakerjaan, Mobile JKN</b>). Menggunakan <b>Smart Hybrid Mode</b> agar puluhan hingga ratusan karyawan selesai dalam hitungan detik tanpa tertahan limit API.
+    Mendukung penarikan file Google Drive langsung melalui <b>Google Apps Script Web App</b> (bebas blokir HTTP 403/CORS), pengecekan dokumen fisik & digital (<b>IKD KTP Digital, JMO BPJS Ketenagakerjaan, Mobile JKN</b>), serta output report interaktif web & Excel.
   </p>
 
-  <!-- Konfigurasi Mode & GitHub AI -->
+  <!-- Konfigurasi Google Apps Script & GitHub AI -->
   <div class="ai-box">
-    <h3>Pengaturan Kecepatan & GitHub Models AI</h3>
+    <h3>Koneksi Google Drive Bridge & Pengaturan AI</h3>
+    <div class="ai-grid">
+      <div class="field-group">
+        <label for="gasUrlInput">URL Google Apps Script Web App (Penarik File Drive Anti HTTP 403)</label>
+        <input type="text" id="gasUrlInput" placeholder="https://script.google.com/macros/s/.../exec" />
+      </div>
+      <div class="field-group">
+        <label for="githubTokenInput">Token GitHub Models AI (Opsional)</label>
+        <input type="password" id="githubTokenInput" placeholder="ghp_... atau github_pat_..." />
+      </div>
+    </div>
+
     <div class="ai-row">
       <select id="checkModeSelect" title="Pilih strategi pengecekan">
         <option value="HYBRID" selected>Mode: Smart Hybrid (Super Cepat &lt; 1 Menit + AI untuk kasus ragu)</option>
         <option value="FAST_LOCAL">Mode: Full Lokal Paralel (Tercepat &amp; Tanpa Batas Kuota)</option>
         <option value="FULL_AI">Mode: Full GitHub Vision AI (Semua dicek AI — kena limit 15 file/menit)</option>
       </select>
-      <input type="password" id="githubTokenInput" placeholder="Token GitHub (ghp_... / github_pat_...) - Opsional" />
       <select id="concurrencySelect" title="Jumlah file diproses bersamaan">
-        <option value="8" selected>8 File Paralel (Super Cepat)</option>
-        <option value="5">5 File Paralel</option>
-        <option value="12">12 File Paralel (Maksimal)</option>
+        <option value="6" selected>6 File Paralel (Direkomendasikan untuk GAS)</option>
+        <option value="8">8 File Paralel (Super Cepat)</option>
+        <option value="4">4 File Paralel (Stabil)</option>
       </select>
-      <button class="btn" style="padding: 9px 14px; font-size: 13px;" onclick="saveToken()">Simpan Token</button>
+      <button class="btn" style="padding: 9px 16px; font-size: 13px;" onclick="saveConfig()">Simpan Konfigurasi</button>
     </div>
-    <div class="ai-hint" id="tokenStatusHint">
-      *Gunakan <b>Mode Smart Hybrid</b> agar pengecekan 29+ karyawan selesai dalam ±30–60 detik dan hemat kuota token GitHub AI.
+    <div class="ai-hint" id="configStatusHint">
+      *Tempel URL deployment <b>script.google.com</b> di kotak kiri atas agar file PDF &amp; gambar di Google Drive dapat diunduh langsung tanpa error HTTP 403.
     </div>
   </div>
 
@@ -378,14 +409,14 @@
   <div class="upload-grid">
     <div class="upload-card">
       <h3>1. Upload Excel Template (.xlsx / .xls)</h3>
-      <p>Wajib diupload sebagai daftar master karyawan & link dokumen (<code>FORMAT UPLOAD CEK IMAGE.xlsx</code>).</p>
+      <p>Wajib diupload sebagai daftar master karyawan &amp; link dokumen (<code>FORMAT UPLOAD CEK IMAGE.xlsx</code>).</p>
       <input type="file" id="excelFile" accept=".xlsx, .xls" />
       <div class="file-info" id="excelFileInfo"></div>
     </div>
 
     <div class="upload-card">
       <h3>2. Upload File Dokumen / Foto Lokal (Opsional)</h3>
-      <p>Pilih banyak file sekaligus (PDF/JPEG/PNG). Pengecekan file lokal berjalan instan tanpa download internet.</p>
+      <p>Pilih banyak file sekaligus (PDF/JPEG/PNG) jika ingin memeriksa file langsung dari perangkat Anda.</p>
       <input type="file" id="localDocsInput" accept="image/*,.pdf" multiple />
       <div class="file-info" id="localDocsInfo"></div>
     </div>
@@ -530,22 +561,38 @@
   let aiRateLimited = false;
 
   window.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('gh_models_pat');
-    if (saved) {
-      document.getElementById('githubTokenInput').value = saved;
-      document.getElementById('tokenStatusHint').innerHTML = '<span style="color:#16a34a; font-weight:600;">✔ Token GitHub AI aktif dari penyimpanan browser.</span>';
-    }
+    const savedGas = localStorage.getItem('gas_drive_bridge_url');
+    const savedToken = localStorage.getItem('gh_models_pat');
+    if (savedGas) document.getElementById('gasUrlInput').value = savedGas;
+    if (savedToken) document.getElementById('githubTokenInput').value = savedToken;
+    updateConfigHint();
   });
 
-  function saveToken() {
-    const val = document.getElementById('githubTokenInput').value.trim();
-    if (val) {
-      localStorage.setItem('gh_models_pat', val);
-      document.getElementById('tokenStatusHint').innerHTML = '<span style="color:#16a34a; font-weight:600;">✔ Token berhasil disimpan!</span>';
+  function updateConfigHint() {
+    const gas = document.getElementById('gasUrlInput').value.trim();
+    const tok = document.getElementById('githubTokenInput').value.trim();
+    const hint = document.getElementById('configStatusHint');
+    const parts = [];
+    if (gas) parts.push('<span style="color:#16a34a; font-weight:600;">✔ Google Apps Script Bridge Aktif</span>');
+    if (tok) parts.push('<span style="color:#16a34a; font-weight:600;">✔ Token GitHub AI Aktif</span>');
+    if (parts.length > 0) {
+      hint.innerHTML = parts.join(' &nbsp;|&nbsp; ');
     } else {
-      localStorage.removeItem('gh_models_pat');
-      document.getElementById('tokenStatusHint').innerText = 'Token dihapus. Sistem memakai Multi-Worker OCR lokal.';
+      hint.innerHTML = '*Tempel URL deployment <b>script.google.com</b> di kotak kiri atas agar file PDF &amp; gambar di Google Drive dapat diunduh langsung tanpa error HTTP 403.';
     }
+  }
+
+  function saveConfig() {
+    const gasVal = document.getElementById('gasUrlInput').value.trim();
+    const tokVal = document.getElementById('githubTokenInput').value.trim();
+
+    if (gasVal) localStorage.setItem('gas_drive_bridge_url', gasVal);
+    else localStorage.removeItem('gas_drive_bridge_url');
+
+    if (tokVal) localStorage.setItem('gh_models_pat', tokVal);
+    else localStorage.removeItem('gh_models_pat');
+
+    updateConfigHint();
   }
 
   function formatDuration(totalSeconds) {
@@ -556,7 +603,6 @@
     return mins > 0 ? `${mins} menit ${remSecs} detik` : `${remSecs} detik`;
   }
 
-  // 4 Worker OCR paralel untuk kecepatan tinggi
   async function getOcrScheduler() {
     if (ocrScheduler) return ocrScheduler;
     const scheduler = Tesseract.createScheduler();
@@ -629,7 +675,7 @@
     return null;
   }
 
-  async function fetchWithTimeout(resource, timeoutMs = 4500) {
+  async function fetchWithTimeout(resource, timeoutMs = 12000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -642,6 +688,43 @@
     }
   }
 
+  // Konversi Base64 (hasil dari Google Apps Script) menjadi Canvas (mendukung Image maupun PDF)
+  async function base64PayloadToCanvas(base64Data, mimeType) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    if (mimeType && mimeType.toLowerCase().includes('pdf')) {
+      const binaryStr = atob(base64Data);
+      const len = binaryStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+
+      const pdf = await pdfjsLib.getDocument({ data: bytes.buffer }).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1.25 });
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+      return canvas;
+    } else {
+      const dataUrl = `data:${mimeType || 'image/jpeg'};base64,${base64Data}`;
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('Gagal merender gambar dari Base64 GAS'));
+        image.src = dataUrl;
+      });
+
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      ctx.drawImage(img, 0, 0);
+      return canvas;
+    }
+  }
+
   async function loadLocalFileToNewCanvas(file) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -650,7 +733,7 @@
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.2 });
+      const viewport = page.getViewport({ scale: 1.25 });
 
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -675,21 +758,45 @@
     }
   }
 
-  async function loadUrlToNewCanvas(url) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  async function loadUrlToNewCanvas(url, gasUrl) {
     const driveId = extractDriveId(url);
 
-    // Endpoint lh3 Google Drive juga menghasilkan thumbnail gambar untuk file PDF yang di-share publik!
-    const imgUrl = driveId 
-      ? `https://lh3.googleusercontent.com/d/${driveId}=w900` 
-      : url;
+    // 1. Jika Google Apps Script Web App URL diisi dan link adalah Google Drive -> tarik lewat GAS (Anti 403)
+    if (gasUrl && driveId) {
+      const sep = gasUrl.includes('?') ? '&' : '?';
+      const endpoint = `${gasUrl}${sep}id=${encodeURIComponent(driveId)}`;
+      let res;
+      try {
+        res = await fetchWithTimeout(endpoint, 15000);
+      } catch (err) {
+        throw new Error('Timeout saat mengambil file dari Google Apps Script');
+      }
+
+      if (!res.ok) {
+        throw new Error(`Google Apps Script gagal merespons (HTTP ${res.status})`);
+      }
+
+      const json = await res.json();
+      if (json.error) {
+        throw new Error(`Akses Drive ditolak di GAS: ${json.error}`);
+      }
+      if (!json.base64) {
+        throw new Error('Data file kosong dari Google Apps Script');
+      }
+
+      return await base64PayloadToCanvas(json.base64, json.mimeType);
+    }
+
+    // 2. Fallback langsung (jika URL Google Apps Script tidak diisi)
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const imgUrl = driveId ? `https://lh3.googleusercontent.com/d/${driveId}=w900` : url;
 
     try {
       const img = await new Promise((resolve, reject) => {
         const image = new Image();
         image.crossOrigin = 'Anonymous';
-        const timer = setTimeout(() => reject(new Error('Image timeout')), 3500);
+        const timer = setTimeout(() => reject(new Error('Image timeout')), 4000);
         image.onload = () => { clearTimeout(timer); resolve(image); };
         image.onerror = (err) => { clearTimeout(timer); reject(err); };
         image.src = imgUrl;
@@ -706,21 +813,20 @@
 
       let response;
       try {
-        response = await fetchWithTimeout(pdfUrl, 5000);
+        response = await fetchWithTimeout(pdfUrl, 5500);
       } catch (fetchErr) {
-        throw new Error('Link timeout / izin Google Drive masih Private');
+        throw new Error('Link timeout / izin Google Drive masih Private (Isi URL Google Apps Script)');
       }
 
       if (!response.ok) {
-        throw new Error(`File gagal diunduh (HTTP ${response.status})`);
+        throw new Error(`File gagal diunduh (HTTP ${response.status} — Gunakan Google Apps Script)`);
       }
 
       const arrayBuffer = await response.arrayBuffer();
-
       try {
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 1.2 });
+        const viewport = page.getViewport({ scale: 1.25 });
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -869,7 +975,7 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     const upperText = text.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').trim();
 
     if (upperText.length < 12) {
-      return { valid: false, reason: 'Foto terlalu jauh / teks dokumen tidak terbaca', uncertain: true };
+      return { valid: false, reason: 'Foto terlalu jauh / teks dokumen tidak terbaca' };
     }
 
     const keywords = DOC_KEYWORDS[docType] || [];
@@ -877,7 +983,7 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
 
     const matched = keywords.some(kw => upperText.includes(kw));
     if (!matched) {
-      return { valid: false, reason: `Isi dokumen tidak cocok dengan ${docType} / salah upload`, uncertain: true };
+      return { valid: false, reason: `Isi dokumen tidak cocok dengan ${docType} / salah upload` };
     }
     return { valid: true };
   }
@@ -890,9 +996,10 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     detailIssues = [];
     aiRateLimited = false;
 
+    const gasUrl = document.getElementById('gasUrlInput').value.trim();
     const ghToken = document.getElementById('githubTokenInput').value.trim();
     const checkMode = document.getElementById('checkModeSelect').value;
-    const concurrency = parseInt(document.getElementById('concurrencySelect').value, 10) || 8;
+    const concurrency = parseInt(document.getElementById('concurrencySelect').value, 10) || 6;
 
     if (checkMode !== 'FULL_AI' || !ghToken) {
       statusText.innerText = 'Menyiapkan 4 worker OCR paralel...';
@@ -963,7 +1070,7 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
           try {
             const canvas = matchedLocal 
               ? await loadLocalFileToNewCanvas(matchedLocal)
-              : await loadUrlToNewCanvas(link);
+              : await loadUrlToNewCanvas(link, gasUrl);
 
             if (isCanvasBlank(canvas)) {
               recordFailure('Gambar blank / kosong / satu warna polos', matchedLocal ? `File Lokal: ${matchedLocal.name}` : link);
@@ -978,14 +1085,11 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
                   checkResult = !qLocal.valid ? qLocal : await verifyDocumentContentLocal(canvas, colName);
                 }
               } else if (checkMode === 'HYBRID') {
-                // 1. Cek cepat lokal dulu
                 const qLocal = analyzeImageQualityLocal(canvas);
                 if (!qLocal.valid) {
                   checkResult = qLocal;
                 } else {
                   const ocrRes = await verifyDocumentContentLocal(canvas, colName);
-                  // 2. Jika OCR lokal lolos -> langsung sesuai (tanpa tunggu API AI).
-                  //    Jika OCR lokal ragu/gagal -> konfirmasi ke GitHub AI (jika token ada) agar tidak salah tolak IKD/JMO!
                   if (ocrRes.valid) {
                     checkResult = ocrRes;
                   } else if (ghToken && !aiRateLimited) {
@@ -999,7 +1103,6 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
                   }
                 }
               } else {
-                // FAST_LOCAL
                 const qLocal = analyzeImageQualityLocal(canvas);
                 checkResult = !qLocal.valid ? qLocal : await verifyDocumentContentLocal(canvas, colName);
               }
