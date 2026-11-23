@@ -917,28 +917,37 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     const scheduler = await getOcrScheduler();
     const empHints = buildEmployeeSpecificHints(row, docType);
 
-    // 1. Cek posisi asli (0°) dengan Red-Channel Grayscale (menghilangkan latar biru e-KTP/KK)
-    const normalCanvas = prepareCanvasForOcr(canvas, 1300, 0, false);
+    // 1. Cek posisi asli (0°) - Grayscale & Binarization
+    const normalCanvas = prepareCanvasForOcr(canvas, 1400, 0, false);
     const res0 = await scheduler.addJob('recognize', normalCanvas);
     const check0 = matchTextAgainstDoc(res0.data.text, docType, empHints);
     if (check0.matched) return { valid: true };
 
-    // 2. Cek posisi asli (0°) dengan Adaptive Binarization (hitam-putih tegas untuk kartu gelap/bayangan)
-    const binCanvas0 = prepareCanvasForOcr(canvas, 1300, 0, true);
+    const binCanvas0 = prepareCanvasForOcr(canvas, 1400, 0, true);
     const resBin0 = await scheduler.addJob('recognize', binCanvas0);
     const checkBin0 = matchTextAgainstDoc(resBin0.data.text, docType, empHints);
     if (checkBin0.matched) return { valid: true };
 
-    // 3. Auto-Rotate: 270° (paling sering untuk scan KK/KTP vertikal miring ke kanan), 90°, dan 180°
+    // 2. Auto-Rotate (270° untuk dokumen miring ke kanan seperti KK & KIS, lalu 90°, lalu 180°)
+    // Menggunakan resolusi 1600px + Binarization agar tabel kecil KK dan kartu gelap KIS terbaca tajam
     let anyReadable = check0.readable || checkBin0.readable;
     const fallbackAngles = [270, 90, 180];
 
     for (const angle of fallbackAngles) {
-      const rotatedCanvas = prepareCanvasForOcr(canvas, 1150, angle, false);
-      const resRot = await scheduler.addJob('recognize', rotatedCanvas);
-      const checkRot = matchTextAgainstDoc(resRot.data.text, docType, empHints);
-      if (checkRot.readable) anyReadable = true;
-      if (checkRot.matched) return { valid: true };
+      const rotGray = prepareCanvasForOcr(canvas, 1500, angle, false);
+      const resRotGray = await scheduler.addJob('recognize', rotGray);
+      const checkRotGray = matchTextAgainstDoc(resRotGray.data.text, docType, empHints);
+      if (checkRotGray.readable) anyReadable = true;
+      if (checkRotGray.matched) return { valid: true };
+
+      // Jika grayscale pada sudut rotasi masih redup (kertas abu-abu KK / foto gelap KIS), pakai Binarization hitam-putih tegas
+      if (angle === 270 || angle === 90) {
+        const rotBin = prepareCanvasForOcr(canvas, 1600, angle, true);
+        const resRotBin = await scheduler.addJob('recognize', rotBin);
+        const checkRotBin = matchTextAgainstDoc(resRotBin.data.text, docType, empHints);
+        if (checkRotBin.readable) anyReadable = true;
+        if (checkRotBin.matched) return { valid: true };
+      }
     }
 
     if (!anyReadable) {
