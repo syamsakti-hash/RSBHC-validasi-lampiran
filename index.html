@@ -1237,6 +1237,15 @@ Balas JSON saja: {"sesuai": true, "alasan": ""} atau {"sesuai": false, "alasan":
     XLSX.writeFile(wb, 'HASIL_CEK_DOKUMEN_KARYAWAN.xlsx');
   });
 </script>
-
+<script>
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.onkeydown = function(e) {
+    if (e.keyCode === 123 || // F12
+       (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || // Ctrl+Shift+I / J
+       (e.ctrlKey && e.keyCode === 85)) { // Ctrl+U
+      return false;
+    }
+  };
+</script>
 </body>
 </html>
